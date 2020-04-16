@@ -1,6 +1,6 @@
 from .download_helper import DownloadHelper
 import time
-from youtube_dl import YoutubeDL
+from youtube_dl import YoutubeDL, DownloadError
 import threading
 from bot import download_dict_lock, download_dict
 from ..status_utils.youtube_dl_download_status import YoutubeDLDownloadStatus
@@ -15,16 +15,18 @@ class MyLogger:
         self.obj = obj
 
     def debug(self, msg):
-        LOGGER.info(msg)
+        LOGGER.debug(msg)
         # Hack to fix changing changing extension
         match = re.search(r'.ffmpeg..Merging formats into..(.*?).$', msg)
         if match and not self.obj.is_playlist:
             self.obj.name = match.group(1)
 
-    def warning(self, msg):
+    @staticmethod
+    def warning(msg):
         LOGGER.warning(msg)
 
-    def error(self, msg):
+    @staticmethod
+    def error(msg):
         LOGGER.error(msg)
 
 
@@ -39,6 +41,7 @@ class YoutubeDLHelper(DownloadHelper):
             'progress_hooks': [self.__onDownloadProgress],
             'logger': MyLogger(self),
             'usenetrc': True,
+            'format': "best/bestvideo+bestaudio"
         }
         self.__download_speed = 0
         self.download_speed_readable = ''
@@ -89,7 +92,7 @@ class YoutubeDLHelper(DownloadHelper):
     def __onDownloadComplete(self):
         self.__listener.onDownloadComplete()
 
-    def __onDownloadError(self, error):
+    def onDownloadError(self, error):
         self.__listener.onDownloadError(error)
 
     def extractMetaData(self, link):
@@ -97,8 +100,12 @@ class YoutubeDLHelper(DownloadHelper):
             self.opts['geo_bypass_country'] = 'IN'
 
         with YoutubeDL(self.opts) as ydl:
-            result = ydl.extract_info(link, download=False)
-            name = ydl.prepare_filename(result)
+            try:
+                result = ydl.extract_info(link, download=False)
+                name = ydl.prepare_filename(result)
+            except DownloadError as e:
+                self.onDownloadError(str(e))
+                return
         if result.get('direct'):
             return None
         if 'entries' in result:
@@ -121,13 +128,18 @@ class YoutubeDLHelper(DownloadHelper):
     def __download(self, link):
         try:
             with YoutubeDL(self.opts) as ydl:
-                ydl.download([link])
+                try:
+                    ydl.download([link])
+                except DownloadError as e:
+                    self.onDownloadError(str(e))
+                    return
             self.__onDownloadComplete()
         except ValueError:
             LOGGER.info("Download Cancelled by User!")
-            self.__onDownloadError("Download Cancelled by User!")
+            self.onDownloadError("Download Cancelled by User!")
 
     def add_download(self, link, path):
+        self.extractMetaData(link)
         LOGGER.info(f"Downloading with YT-DL: {link}")
         self.__gid = f"{self.vid_id}{self.__listener.uid}"
         if not self.is_playlist:
