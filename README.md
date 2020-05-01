@@ -6,8 +6,8 @@ This project is heavily inspired from @out386 's telegram bot which is written i
 
 # Features supported:
 - Mirroring direct download links to google drive
-- Download progress
-- Upload progress
+- Download progress (might not work on youtube-dl)
+- Upload progress (might not work on youtube-dl)
 - Download/upload speeds and ETAs
 - Docker support
 - Uploading To Team Drives.
@@ -15,8 +15,7 @@ This project is heavily inspired from @out386 's telegram bot which is written i
 - Service account support
 - Mirror all youtube-dl supported links
 - Mirror telegram files
-
-# Upcoming features (TODOs):
+- Extract .tar and .zip files
 
 # How to deploy?
 Deploying is pretty much straight forward and is divided into several steps as follows:
@@ -24,8 +23,8 @@ Deploying is pretty much straight forward and is divided into several steps as f
 
 - Clone this repo:
 ```
-git clone https://github.com/lzzy12/python-aria-mirror-bot mirror-bot/
-cd mirror-bot
+git clone https://github.com/magneto261290/magneto-python-aria
+cd magneto-python-aria
 ```
 
 - Install requirements
