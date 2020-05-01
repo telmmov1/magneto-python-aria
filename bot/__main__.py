@@ -1,5 +1,9 @@
 import shutil
 import signal
+import pickle
+
+from os import execl, path, remove
+from sys import executable
 
 from telegram.ext import CommandHandler, run_async
 
@@ -33,6 +37,14 @@ def start(update,context):
 
 
 @run_async
+def restart(update, context):
+    restart_message = sendMessage("Restarting, Please wait!", context.bot, update)
+    # Save restart message object in order to reply to it after restarting
+    with open('restart.pickle', 'wb') as status:
+        pickle.dump(restart_message, status)
+    execl(executable, executable, "-m", "bot")
+
+
 def ping(update, context):
     start_time = int(round(time.time() * 1000))
     reply = sendMessage("Starting Ping", context.bot, update)
@@ -51,6 +63,8 @@ def bot_help(update, context):
 /{BotCommands.HelpCommand}: To get this message
 
 /{BotCommands.MirrorCommand} [download_url][magnet_link]: Start mirroring the link to google drive
+
+/{BotCommands.UnzipMirrorCommand} [download_url][magnet_link] : starts mirroring and if downloaded file is any archive , extracts it to google drive
 
 /{BotCommands.TarMirrorCommand} [download_url][magnet_link]: start mirroring and upload the archived (.tar) version of the download
 
@@ -76,10 +90,19 @@ def bot_help(update, context):
 
 def main():
     fs_utils.start_cleanup()
+    # Check if the bot is restarting
+    if path.exists('restart.pickle'):
+        with open('restart.pickle', 'rb') as status:
+            restart_message = pickle.load(status)
+        restart_message.edit_text("Restarted Successfully!")
+        remove('restart.pickle')
+
     start_handler = CommandHandler(BotCommands.StartCommand, start,
                                    filters=CustomFilters.authorized_chat | CustomFilters.authorized_user)
     ping_handler = CommandHandler(BotCommands.PingCommand, ping,
                                   filters=CustomFilters.authorized_chat | CustomFilters.authorized_user)
+    restart_handler = CommandHandler(BotCommands.RestartCommand, restart,
+                                  filters=CustomFilters.owner_filter)
     help_handler = CommandHandler(BotCommands.HelpCommand,
                                   bot_help, filters=CustomFilters.authorized_chat | CustomFilters.authorized_user)
     stats_handler = CommandHandler(BotCommands.StatsCommand,
@@ -87,6 +110,7 @@ def main():
     log_handler = CommandHandler(BotCommands.LogCommand, log, filters=CustomFilters.owner_filter)
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(ping_handler)
+    dispatcher.add_handler(restart_handler)
     dispatcher.add_handler(help_handler)
     dispatcher.add_handler(stats_handler)
     dispatcher.add_handler(log_handler)
